@@ -1,0 +1,296 @@
+﻿<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Integrador Bling → ERP</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+  /* Console de operacao — dark deliberado, pintado explicito p/ qualquer tema do visualizador. */
+  :root{
+    --bg:#0e1420; --surface:#161d2b; --surface2:#1e2636; --raise:#232c3e;
+    --line:#2a3446; --line2:#354055;
+    --txt:#e7ecf4; --muted:#8b98ae; --faint:#647089;
+    --brand:#4f9cf0; --brand-soft:rgba(79,156,240,.14);
+    --ok:#35c98a; --ok-soft:rgba(53,201,138,.14);
+    --warn:#eab54d; --warn-soft:rgba(234,181,77,.14);
+    --err:#f2645a; --err-soft:rgba(242,100,90,.14);
+    --mono:"IBM Plex Mono",ui-monospace,monospace;
+    --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:var(--bg);color:var(--txt);font-family:var(--sans);
+    line-height:1.5;-webkit-font-smoothing:antialiased;
+    background-image:radial-gradient(1200px 600px at 80% -10%,rgba(79,156,240,.06),transparent 60%);}
+  .wrap{max-width:900px;margin:0 auto;padding:28px 20px 72px}
+
+  /* Header */
+  .top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  .brand h1{margin:0;font-size:23px;font-weight:700;letter-spacing:-.02em}
+  .brand h1 .arrow{color:var(--brand)}
+  .brand p{margin:4px 0 0;color:var(--muted);font-size:13px}
+  .demo-pill{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);
+    font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--warn);
+    background:var(--warn-soft);border:1px solid rgba(234,181,77,.35);
+    padding:6px 11px;border-radius:999px;white-space:nowrap}
+  .demo-pill .dot{width:6px;height:6px;border-radius:50%;background:var(--warn)}
+
+  /* Faixa de explicacao dos 2 portoes */
+  .gates{margin:22px 0 8px;background:var(--surface);border:1px solid var(--line);
+    border-radius:14px;padding:16px 18px;display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .gate{display:flex;gap:12px;align-items:flex-start}
+  .gate .n{font-family:var(--mono);font-size:12px;color:var(--brand);
+    border:1px solid var(--line2);border-radius:8px;padding:3px 8px;background:var(--surface2)}
+  .gate h3{margin:0 0 2px;font-size:13.5px;font-weight:600}
+  .gate p{margin:0;color:var(--muted);font-size:12.5px}
+  .gates-foot{grid-column:1/-1;border-top:1px solid var(--line);padding-top:11px;
+    color:var(--faint);font-size:12px;display:flex;gap:8px;align-items:center}
+  .gates-foot b{color:var(--muted);font-weight:600}
+
+  /* Tabs */
+  .tabs{display:flex;gap:8px;margin:20px 0 16px;align-items:center}
+  .tab{background:var(--surface);color:var(--txt);border:1px solid var(--line);
+    padding:9px 15px;border-radius:10px;cursor:pointer;font-size:14px;font-family:var(--sans);
+    display:flex;align-items:center;gap:9px;transition:border-color .15s,background .15s}
+  .tab:hover{border-color:var(--line2)}
+  .tab.on{background:var(--brand-soft);border-color:var(--brand);color:#dcebff}
+  .tab .cnt{font-family:var(--mono);font-size:12px;min-width:20px;text-align:center;
+    background:rgba(255,255,255,.08);border-radius:20px;padding:1px 8px}
+  .tab.on .cnt{background:rgba(79,156,240,.3)}
+  .spacer{flex:1}
+  .auto-note{color:var(--faint);font-size:12px;font-family:var(--mono)}
+
+  /* Cards */
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;
+    padding:17px 18px;margin-bottom:13px;animation:rise .25s ease both}
+  .card.grav{border-left:3px solid var(--ok)}
+  .chead{display:flex;justify-content:space-between;align-items:center;gap:12px}
+  .pedido{font-family:var(--mono);font-weight:600;font-size:15px;letter-spacing:-.01em}
+  .canal{color:var(--faint);font-size:11px;font-family:var(--mono);text-transform:uppercase;
+    letter-spacing:.06em;margin-left:9px}
+  .cliente{color:var(--muted);font-size:13px;margin:7px 0 0}
+  .cliente b{color:var(--txt);font-weight:500}
+  .meta{color:var(--faint);font-size:12px;margin-top:8px;font-family:var(--mono)}
+
+  .badge{font-size:11.5px;padding:4px 11px;border-radius:20px;font-weight:600;white-space:nowrap;
+    font-family:var(--mono);letter-spacing:.02em}
+  .badge.err{background:var(--err-soft);color:var(--err)}
+  .badge.ok{background:var(--ok-soft);color:var(--ok)}
+
+  .erro{margin:11px 0 0;background:var(--err-soft);border:1px solid rgba(242,100,90,.28);
+    border-radius:9px;padding:9px 12px;color:#ffb3ad;font-size:12.5px;display:flex;gap:9px}
+  .erro svg{flex:none;margin-top:1px}
+
+  .itens{margin:12px 0 0;display:flex;flex-direction:column;gap:9px}
+  .item{background:var(--surface2);border:1px solid var(--line);border-radius:10px;
+    padding:11px 13px;display:flex;justify-content:space-between;align-items:center;
+    gap:12px;flex-wrap:wrap;border-left:3px solid var(--warn)}
+  .item.ok{border-left-color:var(--ok)}
+  .item-info .sku{font-family:var(--mono);font-size:13px}
+  .item-info .desc{color:var(--muted);font-size:12px;margin-top:2px}
+  .item-info .qtd{color:var(--faint);font-size:12px;font-family:var(--mono);margin-top:3px}
+  .map{display:flex;align-items:center;gap:8px}
+  .map label{color:var(--faint);font-size:11px;font-family:var(--mono)}
+  .map input{width:104px;background:var(--bg);color:var(--txt);border:1px solid var(--line2);
+    border-radius:8px;padding:8px 10px;font-size:13px;font-family:var(--mono);outline:none}
+  .map input:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
+  .map .done{color:var(--ok);font-family:var(--mono);font-size:12.5px;display:flex;gap:6px;align-items:center}
+
+  .cfoot{display:flex;align-items:center;gap:12px;margin-top:13px;
+    border-top:1px solid var(--line);padding-top:13px}
+  .cfoot .hint{color:var(--faint);font-size:12px}
+
+  button.btn{font-family:var(--sans);border-radius:9px;cursor:pointer;font-size:13.5px;
+    border:1px solid var(--line2);background:var(--raise);color:var(--txt);padding:8px 14px;
+    transition:transform .05s,border-color .15s,background .15s}
+  button.btn:hover:not(:disabled){border-color:var(--brand);color:#dcebff}
+  button.btn:active:not(:disabled){transform:translateY(1px)}
+  button.btn.vinc{border-color:var(--brand);color:#bcdcff}
+  button.primary{background:var(--brand);border-color:var(--brand);color:#08121f;font-weight:600;
+    padding:9px 17px}
+  button.primary:hover:not(:disabled){background:#68abf4}
+  button:disabled{opacity:.45;cursor:not-allowed}
+
+  .empty{color:var(--muted);text-align:center;padding:52px 0}
+  .empty .big{font-size:15px;color:var(--txt)}
+  .empty .sub{font-size:13px;margin-top:6px;color:var(--faint)}
+
+  footer{margin-top:26px;color:var(--faint);font-size:12px;text-align:center;
+    border-top:1px solid var(--line);padding-top:16px}
+  footer b{color:var(--warn);font-weight:600}
+
+  /* Toast */
+  #toasts{position:fixed;right:18px;bottom:18px;display:flex;flex-direction:column;gap:10px;z-index:50}
+  .toast{background:var(--surface2);border:1px solid var(--line2);border-left:3px solid var(--ok);
+    border-radius:11px;padding:12px 15px;min-width:240px;box-shadow:0 12px 34px rgba(0,0,0,.45);
+    animation:rise .25s ease both}
+  .toast .t1{font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px}
+  .toast .t2{color:var(--muted);font-size:12px;margin-top:3px;font-family:var(--mono)}
+
+  @keyframes rise{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+  @media (max-width:620px){.gates{grid-template-columns:1fr}}
+</style>
+
+<div class="wrap">
+  <div class="top">
+    <div class="brand">
+      <h1>Integrador Bling <span class="arrow">→</span> ERP</h1>
+      <p>Meio de campo entre o Bling e o sistema — recebe o pedido, valida, e grava a venda pronta no ERP.</p>
+    </div>
+    <span class="demo-pill"><span class="dot"></span>Demonstração · dados de exemplo</span>
+  </div>
+
+  <div class="gates">
+    <div class="gate">
+      <span class="n">1</span>
+      <div><h3>Pronto na origem</h3><p>No Bling, o pedido está <b style="color:var(--muted)">atendido</b> e com a NF emitida.</p></div>
+    </div>
+    <div class="gate">
+      <span class="n">2</span>
+      <div><h3>Bate com o sistema</h3><p>Cliente, produto, vendedor e operação resolvidos contra o ERP.</p></div>
+    </div>
+    <div class="gates-foot">
+      <span>Passou nos dois portões → <b>grava sozinho</b>. Faltou algo → <b>fica aqui pra revisar</b> antes de ir pro sistema.</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab on" id="tab-rev" onclick="troca('rev')">A revisar <span class="cnt" id="c-rev">1</span></button>
+    <button class="tab" id="tab-gra" onclick="troca('gra')">Gravados <span class="cnt" id="c-gra">1</span></button>
+    <span class="spacer"></span>
+    <span class="auto-note" id="autonote">1 pedido entrou sozinho hoje</span>
+  </div>
+
+  <main id="view"></main>
+
+  <footer>
+    Protótipo Bononi · escreve <b>apenas na base de teste</b> — a produção do ERP não é tocada.
+  </footer>
+</div>
+<div id="toasts"></div>
+
+<script>
+(function(){
+  "use strict";
+  var state = {
+    aba:'rev',
+    revisar:[
+      { id:'2002', canal:'bling', num:'BLING-2002', cliente:'Auto Center Silva', doc:'111.111.111-11',
+        erro:'Produto sem vínculo com o ERP: SKU "SKU-GEL-2P".',
+        itens:[
+          { sku:'SKU-GEL-2P', desc:'Serviço geladeira 2 portas', qtd:'2 × R$ 320,00', idProduto:null },
+        ] },
+    ],
+    gravados:[
+      { id:'2001', canal:'bling', num:'BLING-2001', cliente:'Transportes Boa Vista', doc:'12.345.678/0001-90',
+        venda:'12608', empresa:'2', vendedor:'47544', quando:'hoje 10:04', auto:true },
+    ],
+  };
+
+  var view = document.getElementById('view');
+  function el(html){ var d=document.createElement('div'); d.innerHTML=html.trim(); return d.firstChild; }
+  function esc(s){ return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+
+  function conta(){
+    document.getElementById('c-rev').textContent = state.revisar.length;
+    document.getElementById('c-gra').textContent = state.gravados.length;
+    var autos = state.gravados.filter(function(g){return g.auto;}).length;
+    document.getElementById('autonote').textContent = autos+' pedido'+(autos!==1?'s':'')+' entr'+(autos!==1?'aram':'ou')+' sozinho'+(autos!==1?'s':'')+' hoje';
+  }
+
+  function toast(titulo, sub){
+    var t = el('<div class="toast"><div class="t1"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#35c98a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>'+esc(titulo)+'</div><div class="t2">'+esc(sub)+'</div></div>');
+    document.getElementById('toasts').appendChild(t);
+    setTimeout(function(){ t.style.transition='opacity .4s,transform .4s'; t.style.opacity='0'; t.style.transform='translateY(7px)'; setTimeout(function(){t.remove();},400); }, 3600);
+  }
+
+  function iconAlerta(){ return '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#f2645a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>'; }
+
+  function cardRevisar(p){
+    var todosOk = p.itens.every(function(i){return i.idProduto;});
+    var itensHtml = p.itens.map(function(it,idx){
+      var right = it.idProduto
+        ? '<div class="map"><span class="done"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#35c98a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>produto '+esc(it.idProduto)+'</span></div>'
+        : '<div class="map"><label>Cód. ERP</label><input id="in-'+p.id+'-'+idx+'" inputmode="numeric" placeholder="ex: 14927"><button class="btn vinc" onclick="vincular(\''+p.id+'\','+idx+')">Vincular</button></div>';
+      return '<div class="item'+(it.idProduto?' ok':'')+'">'
+        +'<div class="item-info"><div class="sku">'+esc(it.sku)+'</div><div class="desc">'+esc(it.desc)+'</div><div class="qtd">'+esc(it.qtd)+'</div></div>'
+        + right +'</div>';
+    }).join('');
+    return '<div class="card" id="card-'+p.id+'">'
+      +'<div class="chead"><div><span class="pedido">'+esc(p.num)+'</span><span class="canal">'+esc(p.canal)+'</span></div>'
+      +'<span class="badge err">Com erro</span></div>'
+      +'<div class="cliente"><b>'+esc(p.cliente)+'</b> · '+esc(p.doc)+'</div>'
+      +(todosOk ? '' : '<div class="erro">'+iconAlerta()+'<span>'+esc(p.erro)+'</span></div>')
+      +'<div class="itens">'+itensHtml+'</div>'
+      +'<div class="cfoot"><button class="btn primary" id="grava-'+p.id+'" onclick="reprocessar(\''+p.id+'\')"'+(todosOk?'':' disabled')+'>Reprocessar e gravar</button>'
+      +'<span class="hint">'+(todosOk?'Pronto — o sistema revalida e grava no ERP.':'Vincule o produto acima para liberar.')+'</span></div>'
+      +'</div>';
+  }
+
+  function cardGravado(p){
+    return '<div class="card grav">'
+      +'<div class="chead"><div><span class="pedido">'+esc(p.num)+'</span><span class="canal">'+esc(p.canal)+'</span></div>'
+      +'<span class="badge ok">Venda '+esc(p.venda)+'</span></div>'
+      +'<div class="cliente"><b>'+esc(p.cliente)+'</b> · '+esc(p.doc)+'</div>'
+      +'<div class="meta">Empresa '+esc(p.empresa)+' · Vendedor '+esc(p.vendedor)+' · '+esc(p.quando)
+      +(p.auto?'  ·  entrou automático':'')+'</div></div>';
+  }
+
+  function render(){
+    conta();
+    document.getElementById('tab-rev').classList.toggle('on', state.aba==='rev');
+    document.getElementById('tab-gra').classList.toggle('on', state.aba==='gra');
+    view.innerHTML='';
+    if(state.aba==='rev'){
+      if(!state.revisar.length){
+        view.appendChild(el('<div class="empty"><div class="big">Nada a revisar. ✅</div><div class="sub">Todos os pedidos entraram sozinhos no ERP.</div></div>'));
+      } else {
+        state.revisar.forEach(function(p){ view.appendChild(el(cardRevisar(p))); });
+      }
+    } else {
+      if(!state.gravados.length){
+        view.appendChild(el('<div class="empty"><div class="big">Nenhuma venda gravada ainda.</div></div>'));
+      } else {
+        state.gravados.forEach(function(p){ view.appendChild(el(cardGravado(p))); });
+      }
+    }
+  }
+
+  window.troca = function(a){ state.aba=a; render(); };
+
+  window.vincular = function(pid, idx){
+    var inp = document.getElementById('in-'+pid+'-'+idx);
+    var val = (inp.value||'').replace(/\D/g,'');
+    if(!val){ inp.focus(); inp.style.borderColor='var(--err)'; return; }
+    var p = state.revisar.find(function(x){return x.id===pid;});
+    p.itens[idx].idProduto = val;
+    toast('Vínculo salvo', 'SKU '+p.itens[idx].sku+' → produto '+val);
+    render();
+  };
+
+  window.reprocessar = function(pid){
+    var btn = document.getElementById('grava-'+pid);
+    if(btn){ btn.disabled=true; btn.textContent='Enviando ao ERP…'; }
+    setTimeout(function(){
+      var i = state.revisar.findIndex(function(x){return x.id===pid;});
+      if(i<0) return;
+      var p = state.revisar.splice(i,1)[0];
+      var venda = 12609;
+      state.gravados.unshift({ id:p.id, canal:p.canal, num:p.num, cliente:p.cliente, doc:p.doc,
+        venda:String(venda), empresa:'2', vendedor:'47544', quando:'agora', auto:false });
+      toast('Gravado no ERP', p.num+' → venda '+venda);
+      state.aba='gra';
+      render();
+    }, 780);
+  };
+
+  render();
+})();
+</script>
+
+</html>
+
